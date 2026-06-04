@@ -37,26 +37,53 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > app/release.keystore
+          echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
+
       - name: Build Release APK & Bundle
         run: ./gradlew assembleRelease bundleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --oneline)
+          else
+            CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --oneline)
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION_NAME }}
           name: Release v${{ env.VERSION_NAME }}
-          generate_release_notes: true
           body: |
-            ## Release v${{ env.VERSION_NAME }}
+            ## 🚀 Release v${{ env.VERSION_NAME }}
             Versão oficial do Geny Assistant.
             
-            ### Downloads
-            * [Download APK](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release-unsigned.apk) ![Badge](https://img.shields.io/badge/Download-APK-blue?style=flat-square&logo=android)
-            * [Download AAB](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release-unsigned.aab) ![Badge](https://img.shields.io/badge/Download-AAB-orange?style=flat-square&logo=android)
+            ### 📝 O que mudou?
+            ${{ env.CHANGELOG }}
+            
+            ### 📥 Downloads
+            * [Download APK](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release.apk) ![Badge](https://img.shields.io/badge/Download-APK-blue?style=flat-square&logo=android)
+            * [Download AAB](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release.aab) ![Badge](https://img.shields.io/badge/Download-AAB-orange?style=flat-square&logo=android)
+            
+            ---
+            *Build Code: ${{ env.VERSION_CODE }}*
           draft: false
           prerelease: false
           files: |
-            app/build/outputs/apk/release/app-release-unsigned.apk
-            app/build/outputs/bundle/release/app-release-unsigned.aab
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
