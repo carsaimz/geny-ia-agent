@@ -1,14 +1,46 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "geny-assistant-placeholder"
+    "project_number": "778443558",
+    "firebase_url": "https://carsaidev-default-rtdb.firebaseio.com",
+    "project_id": "carsaidev",
+    "storage_bucket": "carsaidev.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:000000000000",
+        "mobilesdk_app_id": "1:778443558:android:2e5b57de7fbed049c5ffe7",
+        "android_client_info": {
+          "package_name": "com.carsaidev.webapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2e0FKfe3NW8qrs6m42DBDTz1xMAU2i_w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:778443558:android:1358a3bbe2ad0b5dc5ffe7",
         "android_client_info": {
           "package_name": "com.genyassistant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2e0FKfe3NW8qrs6m42DBDTz1xMAU2i_w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
         }
       }
     }
