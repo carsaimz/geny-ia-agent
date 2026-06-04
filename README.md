@@ -1,6 +1,6 @@
 <img src="./.github/assets/app-icon.png" alt="Voice Assistant App Icon" width="100" height="100">
 
-# Android Agent Starter
+# Android Geny Assistant
 
 This is a starter template for [LiveKit Agents](https://docs.livekit.io/agents/overview/) that provides a simple voice interface using the [LiveKit Android SDK](https://github.com/livekit/client-sdk-android).
 

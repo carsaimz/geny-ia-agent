@@ -5,7 +5,7 @@ tasks:
   post_create:
     desc: "Runs after this template is instantiated as a Sandbox or Bootstrap"
     vars:
-      TOKEN_FILE: "app/src/main/java/io/livekit/android/example/voiceassistant/TokenExt.kt"
+      TOKEN_FILE: "app/src/main/java/com.genyassistant/TokenExt.kt"
     cmds:
       - echo -e "Setting up sandbox..."
       - platforms: [darwin]
