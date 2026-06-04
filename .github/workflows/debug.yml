@@ -33,17 +33,33 @@ jobs:
           sed -i "s/versionCode = .*/versionCode = $VERSION_CODE/" app/build.gradle.kts
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
+      - name: Decode Keystore
+        if: env.KEYSTORE_FILE != ''
+        run: |
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > app/release.keystore
+          echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
+        env:
+          KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Generate Changelog
         id: changelog
-        uses: Jay-Khuu/github-tag-action@v1.1.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          custom_tag: debug-${{ env.VERSION_CODE }}
-          tag_prefix: ""
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --oneline)
+          else
+            CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --oneline)
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create Pre-Release
         uses: softprops/action-gh-release@v2
@@ -51,10 +67,13 @@ jobs:
           tag_name: debug-${{ env.VERSION_CODE }}
           name: Debug Build #${{ env.VERSION_CODE }}
           body: |
-            ## Debug Build
-            Esta é uma build automática de debug.
+            ## 🛠 Debug Build #${{ env.VERSION_CODE }}
             
-            [Download APK](https://github.com/${{ github.repository }}/releases/download/debug-${{ env.VERSION_CODE }}/app-debug.apk)
+            ### 📝 Changelog
+            ${{ env.CHANGELOG }}
+            
+            ### 📥 Downloads
+            * [Download APK](https://github.com/${{ github.repository }}/releases/download/debug-${{ env.VERSION_CODE }}/app-debug.apk)
             
             ![Badge](https://img.shields.io/badge/Download-APK-blue?style=for-the-badge&logo=android)
           draft: false
