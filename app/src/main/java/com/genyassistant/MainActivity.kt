@@ -1,6 +1,7 @@
 package com.genyassistant
 
 import android.os.Bundle
+import android.app.Activity
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,9 @@ import com.genyassistant.screen.ConnectScreen
 import com.genyassistant.screen.VoiceAssistantRoute
 import com.genyassistant.screen.VoiceAssistantScreen
 import com.genyassistant.ui.theme.GenyAssistantTheme
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import com.genyassistant.viewmodel.VoiceAssistantViewModel
 import io.livekit.android.util.LoggingLevel
 
@@ -28,6 +32,16 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val navController = rememberNavController()
+            val context = LocalContext.current
+            LaunchedEffect(Unit) {
+                val updateChecker = UpdateChecker(context)
+                updateChecker.checkForUpdates(BuildConfig.VERSION_NAME) { release ->
+                    (context as? Activity)?.runOnUiThread {
+                        Toast.makeText(context, "Nova versão disponível: ${release.tagName}", Toast.LENGTH_LONG).show()
+                        updateChecker.promptUpdate(release)
+                    }
+                }
+            }
             GenyAssistantTheme(dynamicColor = false) {
                 Scaffold { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {

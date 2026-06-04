@@ -33,30 +33,53 @@ jobs:
           sed -i "s/versionCode = .*/versionCode = $VERSION_CODE/" app/build.gradle.kts
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
+      - name: Decode Keystore
+        run: |
+          if [ ! -z "${{ secrets.KEYSTORE_FILE }}" ]; then
+            echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > app/release.keystore
+            echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
+          else
+            echo "KEYSTORE_PATH=debug.keystore" >> $GITHUB_ENV
+          fi
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Generate Changelog
         id: changelog
-        uses: Jay-Khuu/github-tag-action@v1.1.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          custom_tag: debug-${{ env.VERSION_CODE }}
-          tag_prefix: ""
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" -5)
+          else
+            CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"* %s (%h)")
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create Pre-Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: debug-${{ env.VERSION_CODE }}
-          name: Debug Build #${{ env.VERSION_CODE }}
+          name: 🛠 Debug Build #${{ env.VERSION_CODE }}
           body: |
-            ## Debug Build
-            Esta é uma build automática de debug.
+            # 🛠 Geny Assistant - Debug Build #${{ env.VERSION_CODE }}
             
-            [Download APK](https://github.com/${{ github.repository }}/releases/download/debug-${{ env.VERSION_CODE }}/app-debug.apk)
+            Esta build foi gerada automaticamente a partir do commit mais recente.
             
-            ![Badge](https://img.shields.io/badge/Download-APK-blue?style=for-the-badge&logo=android)
+            ### 📝 O que há de novo?
+            ${{ env.CHANGELOG }}
+            
+            ### 📥 Download Direto
+            [![Download APK](https://img.shields.io/badge/Download-APK_Debug-blue?style=for-the-badge&logo=android)](https://github.com/${{ github.repository }}/releases/download/debug-${{ env.VERSION_CODE }}/app-debug.apk)
+            
+            ---
+            *Nota: Esta é uma versão de desenvolvimento e pode conter instabilidades.*
           draft: false
           prerelease: true
           files: |

@@ -37,26 +37,67 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
+      - name: Decode Keystore
+        run: |
+          if [ ! -z "${{ secrets.KEYSTORE_FILE }}" ]; then
+            echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > app/release.keystore
+            echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
+          else
+            echo "Erro: KEYSTORE_FILE secret não configurada."
+            exit 1
+          fi
+
       - name: Build Release APK & Bundle
         run: ./gradlew assembleRelease bundleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" -10)
+          else
+            CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"* %s (%h)")
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION_NAME }}
-          name: Release v${{ env.VERSION_NAME }}
-          generate_release_notes: true
+          name: 🚀 Geny Assistant v${{ env.VERSION_NAME }}
           body: |
-            ## Release v${{ env.VERSION_NAME }}
-            Versão oficial do Geny Assistant.
+            # 🚀 Geny Assistant - Versão v${{ env.VERSION_NAME }}
             
-            ### Downloads
-            * [Download APK](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release-unsigned.apk) ![Badge](https://img.shields.io/badge/Download-APK-blue?style=flat-square&logo=android)
-            * [Download AAB](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release-unsigned.aab) ![Badge](https://img.shields.io/badge/Download-AAB-orange?style=flat-square&logo=android)
+            Bem-vindo à nova versão do Geny Assistant!
+            
+            ### 📝 O que mudou nesta versão?
+            ${{ env.CHANGELOG }}
+            
+            ### 📥 Downloads Oficiais
+            
+            | Arquivo | Link de Download | Badge |
+            | :--- | :--- | :--- |
+            | **Android APK** | [Baixar APK](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release.apk) | [![Download APK](https://img.shields.io/badge/Download-APK-blue?style=flat-square&logo=android)](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release.apk) |
+            | **Android App Bundle** | [Baixar AAB](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release.aab) | [![Download AAB](https://img.shields.io/badge/Download-AAB-orange?style=flat-square&logo=android)](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION_NAME }}/app-release.aab) |
+            
+            ---
+            **Informações Técnicas:**
+            - **Versão:** ${{ env.VERSION_NAME }}
+            - **Build Code:** ${{ env.VERSION_CODE }}
+            - **Data:** $(date +'%d/%m/%Y')
+            
+            *Desenvolvido com tecnologia LiveKit e Firebase.*
           draft: false
           prerelease: false
           files: |
-            app/build/outputs/apk/release/app-release-unsigned.apk
-            app/build/outputs/bundle/release/app-release-unsigned.aab
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
