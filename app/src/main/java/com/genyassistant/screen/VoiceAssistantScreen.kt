@@ -26,16 +26,13 @@ import io.livekit.android.compose.state.rememberAgent
 import io.livekit.android.compose.state.rememberParticipants
 import io.livekit.android.compose.state.rememberRoomInfo
 import io.livekit.android.compose.state.rememberTracks
+import io.livekit.android.compose.state.rememberLocalMedia
 import io.livekit.android.compose.ui.VideoTrackView
 import io.livekit.android.room.track.Track
-import io.livekit.android.room.track.VideoTrack
 import com.genyassistant.ui.ControlBar
 import com.genyassistant.ui.ChatLog
 import com.genyassistant.ui.ChatBar
 import kotlinx.serialization.Serializable
-import io.livekit.android.compose.state.rememberLocalParticipant
-import io.livekit.android.compose.local.rememberVideoTrack
-import io.livekit.android.compose.local.rememberVideoTrackPublication
 import kotlinx.coroutines.launch
 
 @Serializable
@@ -61,7 +58,7 @@ fun VoiceAssistantScreen(
         token = route.token,
         connect = true,
         audio = true,
-        room = room
+        passedRoom = room
     ) {
         val participants = rememberParticipants()
         val tracks = rememberTracks()
@@ -71,20 +68,14 @@ fun VoiceAssistantScreen(
         val agent = rememberAgent()
 
         val canEnableMic by rememberCanEnableMic()
-        val localParticipant = rememberLocalParticipant()
+        val localMedia = rememberLocalMedia(room = room)
         val coroutineScope = rememberCoroutineScope()
 
         var isChatOpen by remember { mutableStateOf(false) }
 
-        // Camera and Screenshare
-        val cameraTrackPub = rememberVideoTrackPublication(participant = localParticipant)
-        val cameraTrack = rememberVideoTrack(videoTrackPublication = cameraTrackPub)
-
-        val screenShareTrackPub = rememberVideoTrackPublication(
-            participant = localParticipant,
-            source = Track.Source.SCREEN_SHARE
-        )
-        val screenShareTrack = rememberVideoTrack(videoTrackPublication = screenShareTrackPub)
+        // Camera and Screenshare tracks
+        val cameraTrack by localMedia.cameraTrack
+        val screenShareTrack by localMedia.screenShareTrack
 
         val context = LocalContext.current
 
@@ -170,7 +161,8 @@ fun VoiceAssistantScreen(
             }
 
             // Local Video Preview
-            if (cameraTrack != null || screenShareTrack != null) {
+            val trackToDisplay = screenShareTrack ?: cameraTrack
+            if (trackToDisplay != null) {
                 Box(
                     modifier = Modifier
                         .layoutId("localVideo")
@@ -178,25 +170,33 @@ fun VoiceAssistantScreen(
                         .background(Color.Black)
                         .border(1.dp, NeonBlue.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                 ) {
-                    val trackToDisplay = screenShareTrack ?: cameraTrack
-                    
-                    if (trackToDisplay is VideoTrack) {
-                        VideoTrackView(
-                            trackReference = trackToDisplay,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    VideoTrackView(
+                        trackReference = trackToDisplay!!,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
 
             ControlBar(
-                isMicEnabled = localParticipant.isMicrophoneEnabled(),
-                onMicClick = { localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled()) },
-                localAudioTrack = localParticipant.audioTrack,
-                isCameraEnabled = localParticipant.isCameraEnabled(),
-                onCameraClick = { localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled()) },
-                isScreenShareEnabled = localParticipant.isScreenShareEnabled(),
-                onScreenShareClick = { localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled()) },
+                isMicEnabled = localMedia.isMicrophoneEnabled,
+                onMicClick = { 
+                    coroutineScope.launch {
+                        localMedia.setMicrophoneEnabled(!localMedia.isMicrophoneEnabled)
+                    }
+                },
+                localAudioTrack = localMedia.microphoneTrack.value,
+                isCameraEnabled = localMedia.isCameraEnabled,
+                onCameraClick = { 
+                    coroutineScope.launch {
+                        localMedia.setCameraEnabled(!localMedia.isCameraEnabled)
+                    }
+                },
+                isScreenShareEnabled = localMedia.isScreenShareEnabled,
+                onScreenShareClick = { 
+                    coroutineScope.launch {
+                        localMedia.setScreenShareEnabled(!localMedia.isScreenShareEnabled)
+                    }
+                },
                 isChatEnabled = isChatOpen,
                 onChatClick = { isChatOpen = !isChatOpen },
                 onExitClick = onEndCall,
