@@ -53,7 +53,7 @@ fun ConnectScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            painter = painterResource(id = R.drawable.connect_icon),
             contentDescription = "Geny Logo",
             modifier = Modifier.size(120.dp)
         )
