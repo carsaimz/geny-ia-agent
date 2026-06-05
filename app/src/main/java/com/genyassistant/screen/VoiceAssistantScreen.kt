@@ -61,6 +61,9 @@ import com.genyassistant.ui.AgentVisualization
 import com.genyassistant.ui.ChatBar
 import com.genyassistant.ui.ChatLog
 import com.genyassistant.ui.ControlBar
+import com.genyassistant.ChatHistoryManager
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.genyassistant.viewmodel.VoiceAssistantViewModel
 import io.livekit.android.room.track.screencapture.ScreenCaptureParams
 import kotlinx.coroutines.Dispatchers
@@ -119,13 +122,22 @@ fun VoiceAssistant(
                 return@LaunchedEffect
             }
 
-            val result = session.start()
-
-            // Handle if the session fails to connect.
-            if (result.isFailure) {
-                Toast.makeText(context, "Error connecting to the session.", Toast.LENGTH_SHORT).show()
-                onEndCall()
+            var retryCount by mutableIntStateOf(0)
+            val maxRetries = 3
+            
+            suspend fun startSession() {
+                val result = session.start()
+                if (result.isFailure && retryCount < maxRetries) {
+                    retryCount++
+                    Toast.makeText(context, "Falha na conexão. Tentando novamente ($retryCount/$maxRetries)...", Toast.LENGTH_SHORT).show()
+                    startSession()
+                } else if (result.isFailure) {
+                    Toast.makeText(context, "Erro crítico de conexão. Verifique sua internet.", Toast.LENGTH_LONG).show()
+                    onEndCall()
+                }
             }
+            
+            startSession()
         }
 
         // End the session when leaving the screen.
@@ -159,6 +171,16 @@ fun VoiceAssistant(
 
         // Agent provides state information about the agent participant.
         val agent = rememberAgent()
+        val chatHistoryManager = remember { ChatHistoryManager(context) }
+        
+        // Salvar mensagens quando elas chegam
+        LaunchedEffect(sessionMessages.messages) {
+            val lastMessage = sessionMessages.messages.lastOrNull()
+            if (lastMessage != null) {
+                val sender = if (lastMessage.fromParticipant?.identity == room.localParticipant.identity) "Você" else "Geny"
+                chatHistoryManager.saveMessage(sender, lastMessage.message)
+            }
+        }
 
         val constraints = getConstraints(chatVisible, isCameraEnabled, isScreenShareEnabled)
         ConstraintLayout(

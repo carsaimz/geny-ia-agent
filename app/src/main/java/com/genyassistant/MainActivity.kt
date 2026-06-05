@@ -17,7 +17,18 @@ import com.genyassistant.screen.ConnectRoute
 import com.genyassistant.screen.ConnectScreen
 import com.genyassistant.screen.VoiceAssistantRoute
 import com.genyassistant.screen.VoiceAssistantScreen
+import com.genyassistant.screen.SettingsRoute
+import com.genyassistant.screen.SettingsScreen
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import com.genyassistant.ui.theme.GenyAssistantTheme
+import com.genyassistant.ui.theme.NeonBlue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
@@ -44,7 +55,14 @@ class MainActivity : ComponentActivity() {
             }
             GenyAssistantTheme(dynamicColor = false) {
                 Scaffold { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
+                    Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                        // Botão de Configurações no canto superior direito
+                        IconButton(
+                            onClick = { navController.navigate(SettingsRoute) },
+                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = "Configurações", tint = NeonBlue)
+                        }
 
                         // Set up NavHost for the app
                         NavHost(navController, startDestination = ConnectRoute) {
@@ -64,6 +82,12 @@ class MainActivity : ComponentActivity() {
                                         runOnUiThread { navController.navigateUp() }
                                     }
                                 )
+                            }
+
+                            composable<SettingsRoute> {
+                                SettingsScreen(onBack = {
+                                    runOnUiThread { navController.navigateUp() }
+                                })
                             }
                         }
                     }

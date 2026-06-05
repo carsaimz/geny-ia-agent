@@ -1,32 +1,31 @@
 package com.genyassistant.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.livekit.android.annotations.Beta
 import io.livekit.android.compose.state.Agent
+import io.livekit.android.compose.state.AgentState
 import io.livekit.android.compose.ui.ScaleType
 import io.livekit.android.compose.ui.VideoTrackView
 import io.livekit.android.compose.ui.audio.VoiceAssistantBarVisualizer
 import com.genyassistant.ui.anim.CircleReveal
+import com.genyassistant.ui.theme.NeonBlue
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -80,22 +79,51 @@ fun AgentVisualization(
                             return@derivedStateOf max(0f, (widthPx / height))
                         }
                     }
-                    VoiceAssistantBarVisualizer(
-                        agentState = agent.agentState,
-                        audioTrackRef = agent.audioTrack,
-                        barCount = 5,
-                        minHeight = barMinHeightPercent,
-                        barWidth = barWidth,
-                        brush = SolidColor(MaterialTheme.colorScheme.onBackground),
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        modifier = Modifier
-                            .fillMaxWidth(0.75f)
-                            .fillMaxHeight(0.22f)
-                            .onSizeChanged { size ->
-                                width = size.width
-                                height = size.height
-                            }
-                    )
+                    
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        VoiceAssistantBarVisualizer(
+                            agentState = agent.agentState,
+                            audioTrackRef = agent.audioTrack,
+                            barCount = 5,
+                            minHeight = barMinHeightPercent,
+                            barWidth = barWidth,
+                            brush = SolidColor(NeonBlue),
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            modifier = Modifier
+                                .fillMaxWidth(0.75f)
+                                .fillMaxHeight(0.22f)
+                                .onSizeChanged { size ->
+                                    width = size.width
+                                    height = size.height
+                                }
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        val statusText = when (agent.agentState) {
+                            AgentState.LISTENING -> "Ouvindo..."
+                            AgentState.THINKING -> "Geny está pensando..."
+                            AgentState.SPEAKING -> "Geny está falando"
+                            else -> "Conectado"
+                        }
+                        
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Text(
+                                text = statusText,
+                                color = NeonBlue.copy(alpha = 0.8f),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 1.2.sp
+                            )
+                        }
+                    }
                 }
             },
             modifier = Modifier.fillMaxSize(),

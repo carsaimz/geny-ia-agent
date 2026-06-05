@@ -1,34 +1,40 @@
-<img src="./.github/assets/app-icon.png" alt="Voice Assistant App Icon" width="100" height="100">
+# 🤖 Geny Assistant
 
-# Android Geny Assistant
+O **Geny Assistant** é um assistente de voz inteligente e moderno, construído sobre a tecnologia **LiveKit Agents** e integrado com **Firebase**. Ele oferece uma interface néon azul elegante, baixa latência de resposta e recursos avançados de automação.
 
-This is a starter template for [LiveKit Agents](https://docs.livekit.io/agents/overview/) that provides a simple voice interface using the [LiveKit Android SDK](https://github.com/livekit/client-sdk-android).
+## 🚀 Funcionalidades Principais
 
-This template is free for you to use or modify as you see fit.
+*   **Interface Néon Azul**: Identidade visual moderna com tema escuro e elementos brilhantes.
+*   **Voz Personalizada**: Agente IA com persona masculina chamada "Geny".
+*   **Indicadores de Status**: Veja em tempo real se o Geny está *Ouvindo*, *Pensando* ou *Falando*.
+*   **Histórico Local**: Suas conversas são salvas localmente para consulta rápida.
+*   **CI/CD Avançado**: 
+    *   Builds de Debug automáticos a cada commit.
+    *   Releases manuais com assinatura digital e geração de Changelog.
+*   **Firebase Integration**: Analytics, Crashlytics e Cloud Messaging (Notificações) integrados.
+*   **Verificação de Atualizações**: O app avisa automaticamente quando uma nova versão está disponível no GitHub.
 
-## Getting started
+## 🛠 Configuração Necessária
 
-The easiest way to get this app running is with a [token server](https://docs.livekit.io/frontends/authentication/tokens/sandbox-token-server/) and the [LiveKit CLI](https://docs.livekit.io/home/cli/cli-setup/).
+Para que o projeto funcione 100%, você precisa configurar os seguintes itens:
 
-First, enable the token server from your project's **Options** on the [Settings](https://cloud.livekit.io/projects/p_/settings/project) page in LiveKit Cloud and copy the `sandboxID`.
+### 1. Firebase
+*   Substitua o arquivo `app/google-services.json` pelo seu arquivo gerado no [Console do Firebase](https://console.firebase.google.com/).
 
-Then, run the following command to automatically clone this template and connect it to LiveKit Cloud:
+### 2. GitHub Secrets (para CI/CD)
+No seu repositório GitHub, vá em `Settings > Secrets and variables > Actions` e adicione:
+*   `KEYSTORE_FILE`: Seu arquivo `.jks` ou `.keystore` convertido para **Base64**.
+*   `KEYSTORE_PASSWORD`: Senha do arquivo keystore.
+*   `KEY_ALIAS`: Alias da chave.
+*   `KEY_PASSWORD`: Senha da chave.
 
-```bash
-lk app create --template agent-starter-android --sandbox <token_server_sandbox_id>
-```
+### 3. LiveKit Connection
+Configure os dados de conexão em `app/src/main/java/com/genyassistant/TokenExt.kt`:
+*   `sandboxID` ou `hardcodedUrl` e `hardcodedToken`.
 
-Build and run the app in Android Studio.
+## 📦 Downloads
 
-You'll also need an agent to speak with. Try our starter agent for [Python](https://github.com/livekit-examples/agent-starter-python), [Node.js](https://github.com/livekit-examples/agent-starter-node), or [create your own from scratch](https://docs.livekit.io/agents/start/voice-ai/).
+As builds podem ser encontradas na aba [Releases](https://github.com/carsaimz/geny-ia-agent/releases).
 
-> [!NOTE]
-> To setup without the LiveKit CLI, clone the repository and edit the `TokenExt.kt` file to add either a `sandboxID` (from your project's **Options** on the [Settings](https://cloud.livekit.io/projects/p_/settings/project) page), or a [manually generated](#token-generation) URL and token.
-
-## Token generation
-
-In a production environment, you will be responsible for developing a solution to [generate tokens for your users](https://docs.livekit.io/home/server/generating-tokens/) which is integrated with your authentication solution. You should disable the token server and modify `TokenExt.kt` to use your own token server.
-
-## Contributing
-
-This template is open source and we welcome contributions! Please open a PR or issue through GitHub, and don't forget to join us in the [LiveKit Community Slack](https://livekit.io/join-slack)!
+---
+*Desenvolvido com ❤️ por Manus para Carsaimz.*
