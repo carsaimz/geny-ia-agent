@@ -39,80 +39,76 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ChainStyle
-import androidx.constraintlayout.compose.ConstrainScope
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.ConstraintSet
 import androidx.constraintlayout.compose.Dimension
-import androidx.constraintlayout.compose.Visibility
-import androidx.constraintlayout.compose.layoutId
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import io.livekit.android.annotations.Beta
-import io.livekit.android.compose.local.SessionScope
-import io.livekit.android.compose.local.requireRoom
-import io.livekit.android.compose.state.SessionOptions
-import io.livekit.android.compose.state.rememberAgent
-import io.livekit.android.compose.state.rememberLocalMedia
-import io.livekit.android.compose.state.rememberSession
-import io.livekit.android.compose.state.rememberSessionMessages
-import io.livekit.android.compose.ui.VideoTrackView
-import com.genyassistant.rememberCanEnableCamera
-import com.genyassistant.rememberCanEnableMic
-import com.genyassistant.requirePermissions
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.genyassistant.MainActivity
 import com.genyassistant.ui.AgentVisualization
-import com.genyassistant.ui.ChatBar
-import com.genyassistant.ui.ChatLog
-import com.genyassistant.ui.ControlBar
-import com.genyassistant.ChatHistoryManager
+import com.genyassistant.ui.theme.NeonBlue
+import com.genyassistant.viewmodel.VoiceAssistantViewModel
+import io.livekit.android.compose.VideoTrackView
+import io.livekit.android.compose.chat.rememberChat
+import io.livekit.android.compose.local.RoomLocal
+import io.livekit.android.compose.local.SessionScope
+import io.livekit.android.compose.local.rememberVideoTrack
+import io.livekit.android.compose.local.rememberVideoTrackPublication
+import io.livekit.android.compose.state.rememberParticipants
+import io.livekit.android.compose.state.rememberRoomInfo
+import io.livekit.android.compose.state.rememberTracks
+import io.livekit.android.room.Room
+import io.livekit.android.room.track.VideoTrack
+import kotlinx.serialization.Serializable
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import com.genyassistant.viewmodel.VoiceAssistantViewModel
-import io.livekit.android.room.track.screencapture.ScreenCaptureParams
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
 @Serializable
 data class VoiceAssistantRoute(
-    val sandboxId: String,
-    val hardcodedUrl: String,
-    val hardcodedToken: String
+    val url: String,
+    val token: String,
 )
 
 @Composable
 fun VoiceAssistantScreen(
-    viewModel: VoiceAssistantViewModel,
+    url: String,
+    token: String,
     onEndCall: () -> Unit,
-) {
-    VoiceAssistant(
-        viewModel = viewModel,
-        modifier = Modifier.fillMaxSize(),
-        onEndCall = onEndCall
+    viewModel: VoiceAssistantViewModel = viewModel(
+        factory = VoiceAssistantViewModel.Factory(url, token)
     )
-}
-
-@OptIn(Beta::class, ExperimentalPermissionsApi::class)
-@Composable
-fun VoiceAssistant(
-    viewModel: VoiceAssistantViewModel,
-    modifier: Modifier = Modifier,
-    onEndCall: () -> Unit
 ) {
-    var requestedAudio by remember { mutableStateOf(true) } // Turn on audio by default.
-    var requestedVideo by remember { mutableStateOf(false) }
+    val session = viewModel.session
+    val room = viewModel.room
+    val participants = rememberParticipants(room = room)
+    val tracks = rememberTracks(room = room)
+    val roomInfo = rememberRoomInfo(room = room)
+    val chat by rememberChat(room = room)
+    val scope = rememberCoroutineScope()
 
-    requirePermissions(requestedAudio, requestedVideo)
+    val canEnableMic = viewModel.canEnableMic
 
-    val canEnableMic by rememberCanEnableMic()
-    val canEnableVideo by rememberCanEnableCamera()
+    // Camera and Screenshare
+    val cameraTrackPub = rememberVideoTrackPublication(participant = room.localParticipant)
+    val cameraTrack = rememberVideoTrack(videoTrackPublication = cameraTrackPub)
 
-    val session = rememberSession(
-        tokenSource = viewModel.tokenSource,
-        options = SessionOptions(
-            room = viewModel.room
-        )
+    val screenShareTrackPub = rememberVideoTrackPublication(
+        participant = room.localParticipant,
+        source = Room.TrackSource.SCREEN_SHARE
+    )
+    val screenShareTrack = rememberVideoTrack(videoTrackPublication = screenShareTrackPub)
+
+    RoomLocal(
+        room = room,
+        content = {
+            AgentVisualization(
+                room = viewModel.room
+            )
+        }
     )
 
     val context = LocalContext.current
+    val retryCount = remember { mutableIntStateOf(0) }
+    val maxRetries = 3
 
     SessionScope(session = session) { session ->
 
@@ -123,9 +119,6 @@ fun VoiceAssistant(
                 return@LaunchedEffect
             }
 
-            val retryCount = remember { mutableIntStateOf(0) }
-            val maxRetries = 3
-            
             suspend fun startSession() {
                 val result = session.start()
                 if (result.isFailure && retryCount.intValue < maxRetries) {
@@ -148,262 +141,65 @@ fun VoiceAssistant(
             }
         }
 
-        val room = requireRoom()
-        var chatVisible by remember { mutableStateOf(false) }
+        val constraintSet = ConstraintSet {
+            val agentView = createRefFor("agentView")
+            val controlBar = createRefFor("controlBar")
+            val localVideo = createRefFor("localVideo")
 
-        // LocalMedia provides state information about the user's local devices
-        val localMedia = rememberLocalMedia()
-        val isMicEnabled by localMedia::isMicrophoneEnabled
-        val isCameraEnabled by localMedia::isCameraEnabled
-        val isScreenShareEnabled by localMedia::isScreenShareEnabled
+            constrain(agentView) {
+                top.linkTo(parent.top)
+                bottom.linkTo(controlBar.top)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                width = Dimension.fillToConstraints
+                height = Dimension.fillToConstraints
+            }
 
-        LaunchedEffect(canEnableMic, requestedAudio) {
-            session.waitUntilConnected()
-            localMedia.setMicrophoneEnabled(canEnableMic && requestedAudio)
-        }
+            constrain(controlBar) {
+                bottom.linkTo(parent.bottom, margin = 24.dp)
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+                width = Dimension.fillToConstraints
+            }
 
-        LaunchedEffect(canEnableVideo, requestedVideo) {
-            session.waitUntilConnected()
-            localMedia.setCameraEnabled(canEnableVideo && requestedVideo)
-        }
-
-        // SessionMessages handles all transcriptions and chat messages
-        val sessionMessages = rememberSessionMessages()
-
-        // Agent provides state information about the agent participant.
-        val agent = rememberAgent()
-        val chatHistoryManager = remember { ChatHistoryManager(context) }
-        
-        // Salvar mensagens quando elas chegam
-        LaunchedEffect(sessionMessages.messages) {
-            val lastMessage = sessionMessages.messages.lastOrNull()
-            if (lastMessage != null) {
-                val sender = if (lastMessage.fromParticipant?.identity == room.localParticipant.identity) "Você" else "Geny"
-                chatHistoryManager.saveMessage(sender, lastMessage.message)
+            constrain(localVideo) {
+                bottom.linkTo(controlBar.top, margin = 16.dp)
+                end.linkTo(parent.end, margin = 16.dp)
+                width = Dimension.value(120.dp)
+                height = Dimension.value(180.dp)
             }
         }
 
-        val constraints = getConstraints(chatVisible, isCameraEnabled, isScreenShareEnabled)
         ConstraintLayout(
-            constraintSet = constraints,
-            modifier = modifier,
-            animateChangesSpec = spring()
+            constraintSet = constraintSet,
+            modifier = Modifier.fillMaxSize()
         ) {
-            val coroutineScope = rememberCoroutineScope { Dispatchers.IO }
-
-            ChatLog(
-                room = room,
-                messages = sessionMessages.messages,
-                modifier = Modifier.layoutId(LAYOUT_ID_CHAT_LOG)
-            )
-
-            var message by rememberSaveable {
-                mutableStateOf("")
-            }
-            ChatBar(
-                value = message,
-                onValueChange = { message = it },
-                onChatSend = { msg ->
-                    coroutineScope.launch {
-                        sessionMessages.send(msg)
-                    }
-                    message = ""
-                },
-                modifier = Modifier.layoutId(LAYOUT_ID_CHAT_BAR)
-            )
-
-            // Amplitude visualization of the Assistant's voice track.
-            val agentBorderAlpha by animateFloatAsState(if (chatVisible) 1f else 0f, label = "agentBorderAlpha")
-            AgentVisualization(
-                agent = agent,
-                modifier = Modifier
-                    .layoutId(LAYOUT_ID_AGENT)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = agentBorderAlpha), RoundedCornerShape(8.dp))
-            )
-
-            val context = LocalContext.current
-            val screenSharePermissionLauncher =
-                rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-                    val resultCode = result.resultCode
-                    val data = result.data
-                    if (resultCode != Activity.RESULT_OK || data == null) {
-                        return@rememberLauncherForActivityResult
-                    }
-                    coroutineScope.launch {
-                        // Agents only support one video stream at a time.
-                        requestedVideo = false
-                        localMedia.setScreenShareEnabled(true, ScreenCaptureParams(data))
-                    }
-                }
-
-            ControlBar(
-                isMicEnabled = isMicEnabled,
-                onMicClick = { requestedAudio = !requestedAudio },
-                localAudioTrack = localMedia.microphoneTrack,
-                isCameraEnabled = isCameraEnabled,
-                onCameraClick = {
-                    requestedVideo = !requestedVideo
-                    if (requestedVideo) {
-                        // Agents only support one video stream at a time.
-                        coroutineScope.launch { localMedia.setScreenShareEnabled(false) }
-                    }
-                },
-                isScreenShareEnabled = isScreenShareEnabled,
-                onScreenShareClick = {
-                    if (!isScreenShareEnabled) {
-                        // Screenshare permission needs to be requested each time.
-                        val mediaProjectionManager = context.getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                        screenSharePermissionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
-                    } else {
-                        coroutineScope.launch { localMedia.setScreenShareEnabled(false) }
-                    }
-                },
-                isChatEnabled = chatVisible,
-                onChatClick = { chatVisible = !chatVisible },
-                onExitClick = onEndCall,
-                modifier = Modifier
-                    .layoutId(LAYOUT_ID_CONTROL_BAR)
-            )
-
-            val cameraAlpha by animateFloatAsState(targetValue = if (isCameraEnabled) 1f else 0f, label = "Camera Alpha")
             Box(
                 modifier = Modifier
-                    .layoutId(LAYOUT_ID_CAMERA)
-                    .clickable { localMedia.switchCamera() }
-                    .clip(RoundedCornerShape(8.dp))
-                    .alpha(cameraAlpha)
+                    .layoutId("agentView")
+                    .fillMaxSize()
             ) {
-                VideoTrackView(
-                    trackReference = localMedia.cameraTrack,
-                    modifier = Modifier.fillMaxSize()
-                )
+                AgentVisualization(room = room)
+            }
 
+            // Local Video Preview
+            if (cameraTrack != null || screenShareTrack != null) {
                 Box(
-                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 8.dp, bottom = 8.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
-                        .fillMaxWidth(.35f)
-                        .aspectRatio(1f)
+                        .layoutId("localVideo")
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black)
+                        .border(1.dp, NeonBlue.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                 ) {
-                    Icon(
-                        Icons.Default.Cameraswitch,
-                        tint = Color.White.copy(alpha = 0.7f),
-                        contentDescription = "Flip Camera",
-                        modifier = Modifier.fillMaxSize(0.6f)
-                    )
+                    val trackToDisplay = screenShareTrack ?: cameraTrack
+                    if (trackToDisplay is VideoTrack) {
+                        VideoTrackView(
+                            videoTrack = trackToDisplay,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
-
-            val screenShareAlpha by animateFloatAsState(targetValue = if (isScreenShareEnabled) 1f else 0f, label = "Screen Share Alpha")
-            VideoTrackView(
-                trackReference = localMedia.screenShareTrack,
-                modifier = Modifier
-                    .layoutId(LAYOUT_ID_SCREENSHARE)
-                    .clip(RoundedCornerShape(8.dp))
-                    .alpha(screenShareAlpha)
-            )
-        }
-    }
-}
-
-
-private const val LAYOUT_ID_AGENT = "agentVisualizer"
-private const val LAYOUT_ID_CHAT_LOG = "chatLog"
-private const val LAYOUT_ID_CONTROL_BAR = "controlBar"
-private const val LAYOUT_ID_CHAT_BAR = "chatBar"
-private const val LAYOUT_ID_CAMERA = "camera"
-private const val LAYOUT_ID_SCREENSHARE = "screenshare"
-
-private fun getConstraints(chatVisible: Boolean, cameraVisible: Boolean, screenShareVisible: Boolean) = ConstraintSet {
-    val (agentVisualizer, chatLog, controlBar, chatBar, camera, screenShare) = createRefsFor(
-        LAYOUT_ID_AGENT,
-        LAYOUT_ID_CHAT_LOG,
-        LAYOUT_ID_CONTROL_BAR,
-        LAYOUT_ID_CHAT_BAR,
-        LAYOUT_ID_CAMERA,
-        LAYOUT_ID_SCREENSHARE,
-    )
-    val chatTopGuideline = createGuidelineFromTop(0.2f)
-
-    constrain(chatLog) {
-        top.linkTo(chatTopGuideline)
-        bottom.linkTo(chatBar.top)
-        start.linkTo(parent.start)
-        end.linkTo(parent.end)
-        width = Dimension.fillToConstraints
-        height = Dimension.fillToConstraints
-    }
-
-    constrain(chatBar) {
-        bottom.linkTo(controlBar.top, 16.dp)
-        start.linkTo(parent.start, 16.dp)
-        end.linkTo(parent.end, 16.dp)
-        width = Dimension.fillToConstraints
-        height = Dimension.wrapContent
-    }
-
-    constrain(controlBar) {
-        bottom.linkTo(parent.bottom, 10.dp)
-        start.linkTo(parent.start, 16.dp)
-        end.linkTo(parent.end, 16.dp)
-
-        width = Dimension.fillToConstraints
-        height = Dimension.value(60.dp)
-    }
-
-    if (chatVisible) {
-        val chain = createHorizontalChain(agentVisualizer, screenShare, camera, chainStyle = ChainStyle.Spread)
-
-        constrain(chain) {
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-        }
-
-        fun ConstrainScope.itemConstraints(visible: Boolean = true) {
-            top.linkTo(parent.top)
-            bottom.linkTo(chatTopGuideline)
-            width = Dimension.percent(0.3f)
-            height = Dimension.fillToConstraints
-            visibility = if (visible) Visibility.Visible else Visibility.Gone
-        }
-        constrain(agentVisualizer) {
-            itemConstraints()
-        }
-        constrain(camera) {
-            itemConstraints(cameraVisible)
-        }
-        constrain(screenShare) {
-            itemConstraints(screenShareVisible)
-        }
-    } else {
-        constrain(agentVisualizer) {
-            top.linkTo(parent.top)
-            bottom.linkTo(parent.bottom)
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-            height = Dimension.fillToConstraints
-            width = Dimension.fillToConstraints
-        }
-        constrain(camera) {
-            end.linkTo(parent.end, 16.dp)
-            bottom.linkTo(controlBar.top, 16.dp)
-            width = Dimension.percent(0.25f)
-            height = Dimension.percent(0.2f)
-            visibility = if (cameraVisible) Visibility.Visible else Visibility.Gone
-        }
-        constrain(screenShare) {
-            if (cameraVisible) {
-                end.linkTo(camera.start, 16.dp)
-            } else {
-                end.linkTo(parent.end, 16.dp)
-            }
-            bottom.linkTo(controlBar.top, 16.dp)
-            width = Dimension.percent(0.25f)
-            height = Dimension.percent(0.2f)
-            visibility = if (screenShareVisible) Visibility.Visible else Visibility.Gone
         }
     }
 }
