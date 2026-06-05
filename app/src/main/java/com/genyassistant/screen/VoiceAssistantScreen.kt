@@ -65,8 +65,9 @@ fun VoiceAssistantScreen(
     val tokenSource = viewModel.tokenSource
 
     RoomScope(
+        url = route.url,
+        token = route.token,
         room = room,
-        tokenSource = tokenSource,
         connect = true,
         audio = true
     ) {
