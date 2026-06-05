@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.genyassistant"
-    compileSdk = 35
+    compileSdk = 36
 
     signingConfigs {
         create("release") {
@@ -23,7 +23,7 @@ android {
     defaultConfig {
         applicationId = "com.genyassistant"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
