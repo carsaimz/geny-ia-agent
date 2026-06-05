@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -122,14 +123,14 @@ fun VoiceAssistant(
                 return@LaunchedEffect
             }
 
-            var retryCount by mutableIntStateOf(0)
+            val retryCount = remember { mutableIntStateOf(0) }
             val maxRetries = 3
             
             suspend fun startSession() {
                 val result = session.start()
-                if (result.isFailure && retryCount < maxRetries) {
-                    retryCount++
-                    Toast.makeText(context, "Falha na conexão. Tentando novamente ($retryCount/$maxRetries)...", Toast.LENGTH_SHORT).show()
+                if (result.isFailure && retryCount.intValue < maxRetries) {
+                    retryCount.intValue++
+                    Toast.makeText(context, "Falha na conexão. Tentando novamente (${retryCount.intValue}/$maxRetries)...", Toast.LENGTH_SHORT).show()
                     startSession()
                 } else if (result.isFailure) {
                     Toast.makeText(context, "Erro crítico de conexão. Verifique sua internet.", Toast.LENGTH_LONG).show()
