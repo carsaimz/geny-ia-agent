@@ -2,15 +2,9 @@ package com.genyassistant.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -32,11 +26,6 @@ import io.livekit.android.compose.state.rememberAgent
 import io.livekit.android.compose.state.rememberParticipants
 import io.livekit.android.compose.state.rememberRoomInfo
 import io.livekit.android.compose.state.rememberTracks
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import io.livekit.android.compose.local.rememberVideoTrack
-import io.livekit.android.compose.local.rememberVideoTrackPublication
-import io.livekit.android.compose.state.rememberLocalParticipant
 import io.livekit.android.compose.ui.VideoTrackView
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
@@ -44,6 +33,10 @@ import com.genyassistant.ui.ControlBar
 import com.genyassistant.ui.ChatLog
 import com.genyassistant.ui.ChatBar
 import kotlinx.serialization.Serializable
+import io.livekit.android.compose.state.rememberLocalParticipant
+import io.livekit.android.compose.local.rememberVideoTrack
+import io.livekit.android.compose.local.rememberVideoTrackPublication
+import kotlinx.coroutines.launch
 
 @Serializable
 data class VoiceAssistantRoute(
@@ -62,14 +55,13 @@ fun VoiceAssistantScreen(
     )
 ) {
     val room = viewModel.room
-    val tokenSource = viewModel.tokenSource
 
     RoomScope(
         url = route.url,
         token = route.token,
-        room = room,
         connect = true,
-        audio = true
+        audio = true,
+        room = room
     ) {
         val participants = rememberParticipants()
         val tracks = rememberTracks()
@@ -80,6 +72,7 @@ fun VoiceAssistantScreen(
 
         val canEnableMic by rememberCanEnableMic()
         val localParticipant = rememberLocalParticipant()
+        val coroutineScope = rememberCoroutineScope()
 
         var isChatOpen by remember { mutableStateOf(false) }
 
@@ -162,7 +155,9 @@ fun VoiceAssistantScreen(
                                 value = chatMessage,
                                 onValueChange = { chatMessage = it },
                                 onChatSend = {
-                                    chatState.send(it)
+                                    coroutineScope.launch {
+                                        chatState.send(it)
+                                    }
                                     chatMessage = ""
                                 },
                                 modifier = Modifier
@@ -184,15 +179,10 @@ fun VoiceAssistantScreen(
                         .border(1.dp, NeonBlue.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                 ) {
                     val trackToDisplay = screenShareTrack ?: cameraTrack
-                    val pubToDisplay = if (screenShareTrack != null) screenShareTrackPub else cameraTrackPub
                     
-                    if (trackToDisplay is VideoTrack && pubToDisplay != null) {
+                    if (trackToDisplay is VideoTrack) {
                         VideoTrackView(
-                            trackReference = io.livekit.android.compose.types.TrackReference(
-                                participant = localParticipant,
-                                publication = pubToDisplay,
-                                track = trackToDisplay
-                            ),
+                            trackReference = trackToDisplay,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -202,7 +192,7 @@ fun VoiceAssistantScreen(
             ControlBar(
                 isMicEnabled = localParticipant.isMicrophoneEnabled(),
                 onMicClick = { localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled()) },
-                localAudioTrack = null,
+                localAudioTrack = localParticipant.audioTrack,
                 isCameraEnabled = localParticipant.isCameraEnabled(),
                 onCameraClick = { localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled()) },
                 isScreenShareEnabled = localParticipant.isScreenShareEnabled(),
