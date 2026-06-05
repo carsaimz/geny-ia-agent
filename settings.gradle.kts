@@ -24,7 +24,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LiveKit Agents Example"
+rootProject.name = "Geny AI Agent"
 include(":app")
 
 // For local development with the LiveKit Android SDK only.

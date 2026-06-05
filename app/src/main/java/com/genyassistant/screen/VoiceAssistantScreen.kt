@@ -1,16 +1,13 @@
 package com.genyassistant.screen
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -30,17 +27,22 @@ import com.genyassistant.ui.theme.NeonBlue
 import com.genyassistant.viewmodel.VoiceAssistantViewModel
 import io.livekit.android.annotations.Beta
 import io.livekit.android.compose.chat.rememberChat
-import io.livekit.android.compose.local.RoomLocal
+import io.livekit.android.compose.local.RoomScope
+import io.livekit.android.compose.state.rememberAgent
 import io.livekit.android.compose.state.rememberParticipants
 import io.livekit.android.compose.state.rememberRoomInfo
 import io.livekit.android.compose.state.rememberTracks
-import io.livekit.android.compose.state.rememberAgent
-import io.livekit.android.compose.ui.VideoTrackView
-import io.livekit.android.room.track.VideoTrack
-import io.livekit.android.room.track.Track
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import io.livekit.android.compose.local.rememberVideoTrack
 import io.livekit.android.compose.local.rememberVideoTrackPublication
-import io.livekit.android.compose.types.TrackReference
+import io.livekit.android.compose.state.rememberLocalParticipant
+import io.livekit.android.compose.ui.VideoTrackView
+import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.VideoTrack
+import com.genyassistant.ui.ControlBar
+import com.genyassistant.ui.ChatLog
+import com.genyassistant.ui.ChatBar
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -60,35 +62,43 @@ fun VoiceAssistantScreen(
     )
 ) {
     val room = viewModel.room
-    val participants = rememberParticipants()
-    val tracks = rememberTracks()
-    val roomInfo = rememberRoomInfo()
-    val chat by rememberChat()
-    val agent = rememberAgent()
+    val tokenSource = viewModel.tokenSource
 
-    val canEnableMic by rememberCanEnableMic()
+    RoomScope(
+        room = room,
+        tokenSource = tokenSource,
+        connect = true,
+        audio = true
+    ) {
+        val participants = rememberParticipants()
+        val tracks = rememberTracks()
+        val roomInfo = rememberRoomInfo()
+        val chatState = rememberChat()
+        val chat by chatState.messages.collectAsState(initial = emptyList())
+        val agent = rememberAgent()
 
-    // Camera and Screenshare
-    val cameraTrackPub = rememberVideoTrackPublication(participant = room.localParticipant)
-    val cameraTrack = rememberVideoTrack(videoTrackPublication = cameraTrackPub)
+        val canEnableMic by rememberCanEnableMic()
+        val localParticipant = rememberLocalParticipant()
 
-    val screenShareTrackPub = rememberVideoTrackPublication(
-        participant = room.localParticipant,
-        source = Track.Source.SCREEN_SHARE
-    )
-    val screenShareTrack = rememberVideoTrack(videoTrackPublication = screenShareTrackPub)
+        var isChatOpen by remember { mutableStateOf(false) }
 
-    val context = LocalContext.current
-    val retryCount = remember { mutableIntStateOf(0) }
-    val maxRetries = 3
+        // Camera and Screenshare
+        val cameraTrackPub = rememberVideoTrackPublication(participant = localParticipant)
+        val cameraTrack = rememberVideoTrack(videoTrackPublication = cameraTrackPub)
 
-    RoomLocal(room = room) {
+        val screenShareTrackPub = rememberVideoTrackPublication(
+            participant = localParticipant,
+            source = Track.Source.SCREEN_SHARE
+        )
+        val screenShareTrack = rememberVideoTrack(videoTrackPublication = screenShareTrackPub)
+
+        val context = LocalContext.current
+
         // Start the session when we have at least microphone permissions.
         LaunchedEffect(canEnableMic) {
             if (!canEnableMic) {
                 return@LaunchedEffect
             }
-            // A conexão é gerenciada pelo ViewModel ou externamente
         }
 
         val constraintSet = ConstraintSet {
@@ -120,6 +130,8 @@ fun VoiceAssistantScreen(
             }
         }
 
+        var chatMessage by remember { mutableStateOf("") }
+
         ConstraintLayout(
             constraintSet = constraintSet,
             modifier = Modifier.fillMaxSize()
@@ -131,6 +143,33 @@ fun VoiceAssistantScreen(
             ) {
                 if (agent != null) {
                     AgentVisualization(agent = agent)
+                }
+
+                if (isChatOpen) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.7f))
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            ChatLog(
+                                room = room,
+                                messages = chat,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ChatBar(
+                                value = chatMessage,
+                                onValueChange = { chatMessage = it },
+                                onChatSend = {
+                                    chatState.send(it)
+                                    chatMessage = ""
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -144,11 +183,13 @@ fun VoiceAssistantScreen(
                         .border(1.dp, NeonBlue.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                 ) {
                     val trackToDisplay = screenShareTrack ?: cameraTrack
-                    if (trackToDisplay is VideoTrack) {
+                    val pubToDisplay = if (screenShareTrack != null) screenShareTrackPub else cameraTrackPub
+                    
+                    if (trackToDisplay is VideoTrack && pubToDisplay != null) {
                         VideoTrackView(
-                            trackReference = TrackReference(
-                                participant = room.localParticipant,
-                                publication = if (screenShareTrack != null) screenShareTrackPub else cameraTrackPub,
+                            trackReference = io.livekit.android.compose.types.TrackReference(
+                                participant = localParticipant,
+                                publication = pubToDisplay,
                                 track = trackToDisplay
                             ),
                             modifier = Modifier.fillMaxSize()
@@ -156,6 +197,22 @@ fun VoiceAssistantScreen(
                     }
                 }
             }
+
+            ControlBar(
+                isMicEnabled = localParticipant.isMicrophoneEnabled(),
+                onMicClick = { localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled()) },
+                localAudioTrack = null,
+                isCameraEnabled = localParticipant.isCameraEnabled(),
+                onCameraClick = { localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled()) },
+                isScreenShareEnabled = localParticipant.isScreenShareEnabled(),
+                onScreenShareClick = { localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled()) },
+                isChatEnabled = isChatOpen,
+                onChatClick = { isChatOpen = !isChatOpen },
+                onExitClick = onEndCall,
+                modifier = Modifier
+                    .layoutId("controlBar")
+                    .height(56.dp)
+            )
         }
     }
 }
