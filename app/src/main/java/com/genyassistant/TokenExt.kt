@@ -7,4 +7,4 @@ const val sandboxID = "genyassistant-2dsou2"
 // tokens manually by visiting https://cloud.livekit.io/projects/p_/settings/keys
 // and using one of your API Keys to generate a token with custom TTL and permissions.
 const val hardcodedUrl = "wss://geny-assistant-47cqg7ug.livekit.cloud"
-const val hardcodedToken = APIuxDyCtS2Swy5"
+const val hardcodedToken = ""
