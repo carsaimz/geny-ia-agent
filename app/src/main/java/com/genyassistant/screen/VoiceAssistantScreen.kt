@@ -34,7 +34,6 @@ import com.genyassistant.ui.ChatLog
 import com.genyassistant.ui.ChatBar
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.launch
-import io.livekit.android.compose.types.ReceivedMessage
 
 @Serializable
 data class VoiceAssistantRoute(
@@ -65,7 +64,9 @@ fun VoiceAssistantScreen(
         val tracks = rememberTracks()
         val roomInfo = rememberRoomInfo()
         val chatState = rememberChat()
-        val chat by chatState.messages.collectAsState(initial = emptyList<ReceivedMessage>())
+        // The 'chatState' (Chat class) has a 'messages' property which is a State<List<ReceivedChatMessage>>.
+        // We can access it directly without collectAsState.
+        val chat by chatState.messages
         val agent = rememberAgent()
 
         val canEnableMic by rememberCanEnableMic()
