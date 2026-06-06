@@ -35,11 +35,13 @@ import com.genyassistant.hardcodedUrl
 import com.genyassistant.sandboxID
 import com.genyassistant.ui.theme.NeonBlue
 import com.genyassistant.requirePermissions
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import kotlinx.serialization.Serializable
 
 @Serializable
 object ConnectRoute
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ConnectScreen(
     navigateToVoiceAssistant: (VoiceAssistantRoute) -> Unit
