@@ -34,6 +34,7 @@ import com.genyassistant.ui.ChatLog
 import com.genyassistant.ui.ChatBar
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.launch
+import io.livekit.android.compose.types.ReceivedMessage
 
 @Serializable
 data class VoiceAssistantRoute(
@@ -64,7 +65,7 @@ fun VoiceAssistantScreen(
         val tracks = rememberTracks()
         val roomInfo = rememberRoomInfo()
         val chatState = rememberChat()
-        val chat by chatState.messages.collectAsState(initial = emptyList())
+        val chat by chatState.messages.collectAsState(initial = emptyList<ReceivedMessage>())
         val agent = rememberAgent()
 
         val canEnableMic by rememberCanEnableMic()
@@ -72,10 +73,6 @@ fun VoiceAssistantScreen(
         val coroutineScope = rememberCoroutineScope()
 
         var isChatOpen by remember { mutableStateOf(false) }
-
-        // Camera and Screenshare tracks
-        val cameraTrack by localMedia.cameraTrack
-        val screenShareTrack by localMedia.screenShareTrack
 
         val context = LocalContext.current
 
@@ -161,7 +158,10 @@ fun VoiceAssistantScreen(
             }
 
             // Local Video Preview
+            val cameraTrack = localMedia.cameraTrack
+            val screenShareTrack = localMedia.screenShareTrack
             val trackToDisplay = screenShareTrack ?: cameraTrack
+            
             if (trackToDisplay != null) {
                 Box(
                     modifier = Modifier
@@ -171,7 +171,7 @@ fun VoiceAssistantScreen(
                         .border(1.dp, NeonBlue.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                 ) {
                     VideoTrackView(
-                        trackReference = trackToDisplay!!,
+                        trackReference = trackToDisplay,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -184,7 +184,7 @@ fun VoiceAssistantScreen(
                         localMedia.setMicrophoneEnabled(!localMedia.isMicrophoneEnabled)
                     }
                 },
-                localAudioTrack = localMedia.microphoneTrack.value,
+                localAudioTrack = localMedia.microphoneTrack,
                 isCameraEnabled = localMedia.isCameraEnabled,
                 onCameraClick = { 
                     coroutineScope.launch {
