@@ -22,7 +22,17 @@
 
 -dontwarn okhttp3.internal.Util
 
--dontobfuscate
+# Keep Kotlin Serialization classes
+-keepattributes *Annotation*, EnclosingMethod, Signature, InnerClasses
+-keepclassmembers class ** {
+    @kotlinx.serialization.Serializable *;
+}
+-keepclassmembers class ** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+# Keep our specific routes
+-keep @kotlinx.serialization.Serializable class com.genyassistant.screen.** { *; }
 
 -keepclassmembers class io.livekit.android.** {
     *** Companion;

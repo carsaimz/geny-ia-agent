@@ -19,7 +19,7 @@ import com.genyassistant.ui.theme.NeonBlue
 import kotlinx.serialization.Serializable
 
 @Serializable
-object SettingsRoute
+data object SettingsRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
