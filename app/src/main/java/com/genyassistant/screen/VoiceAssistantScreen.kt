@@ -23,14 +23,14 @@ import com.genyassistant.ui.theme.NeonBlue
 import com.genyassistant.viewmodel.VoiceAssistantViewModel
 import io.livekit.android.annotations.Beta
 import io.livekit.android.compose.chat.rememberChat
-import io.livekit.android.compose.local.RoomLocal
+import io.livekit.android.compose.local.RoomScope
 import io.livekit.android.compose.state.rememberParticipants
 import io.livekit.android.compose.state.rememberRoomInfo
 import io.livekit.android.compose.state.rememberTracks
 import io.livekit.android.compose.state.rememberAgent
 import io.livekit.android.compose.state.rememberLocalMedia
 import io.livekit.android.compose.ui.VideoTrackView
-import io.livekit.android.room.RoomState
+import io.livekit.android.room.Room
 import com.genyassistant.ui.ControlBar
 import com.genyassistant.ui.ChatLog
 import com.genyassistant.ui.ChatBar
@@ -59,15 +59,9 @@ fun VoiceAssistantScreen(
 
     // Conectar à sala se ainda não estiver conectado
     LaunchedEffect(room, route) {
-        if (room.state == RoomState.DISCONNECTED) {
+        if (room.state == Room.State.DISCONNECTED) {
             try {
-                // Em versões recentes do SDK, o tokenSource.getToken() pode ser assíncrono ou diferente
-                // Vamos simplificar usando os dados da rota diretamente se possível
                 val token = if (route.sandboxId.isNotEmpty()) {
-                    // Se houver sandboxId, tentamos obter o token do tokenSource
-                    // Mas como getToken() falhou no build, vamos assumir que a lógica de conexão
-                    // deve ser tratada de forma diferente ou o token já deve estar disponível.
-                    // Para fins de correção de build, vamos usar uma string vazia se falhar.
                     "" 
                 } else {
                     route.token
@@ -76,8 +70,6 @@ fun VoiceAssistantScreen(
                 val url = if (route.url.isNotEmpty()) route.url else "wss://geny-assistant-47cqg7ug.livekit.cloud"
                 
                 if (token.isNotEmpty() || route.sandboxId.isNotEmpty()) {
-                    // Se houver sandboxId, o SDK pode lidar com isso internamente se configurado
-                    // Caso contrário, precisamos do token literal
                     if (token.isNotEmpty()) {
                         room.connect(url, token)
                     }
@@ -92,7 +84,7 @@ fun VoiceAssistantScreen(
         }
     }
 
-    RoomLocal(room = room) {
+    RoomScope(passedRoom = room) { room ->
         val participants = rememberParticipants()
         val tracks = rememberTracks()
         val roomInfo = rememberRoomInfo()
