@@ -34,6 +34,7 @@ import com.genyassistant.hardcodedToken
 import com.genyassistant.hardcodedUrl
 import com.genyassistant.sandboxID
 import com.genyassistant.ui.theme.NeonBlue
+import com.genyassistant.requirePermissions
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -44,6 +45,9 @@ fun ConnectScreen(
     navigateToVoiceAssistant: (VoiceAssistantRoute) -> Unit
 ) {
     var isConnecting by remember { mutableStateOf(false) }
+    
+    // Solicitar permissões necessárias
+    val permissionsState = requirePermissions(microphone = true, camera = true)
 
     Column(
         modifier = Modifier
@@ -81,13 +85,17 @@ fun ConnectScreen(
 
         Button(
             onClick = {
-                isConnecting = true
-                val route = VoiceAssistantRoute(
-                    sandboxId = sandboxID,
-                    url = hardcodedUrl,
-                    token = hardcodedToken
-                )
-                navigateToVoiceAssistant(route)
+                if (permissionsState.allPermissionsGranted) {
+                    isConnecting = true
+                    val route = VoiceAssistantRoute(
+                        sandboxId = sandboxID,
+                        url = hardcodedUrl,
+                        token = hardcodedToken
+                    )
+                    navigateToVoiceAssistant(route)
+                } else {
+                    permissionsState.launchMultiplePermissionRequest()
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()

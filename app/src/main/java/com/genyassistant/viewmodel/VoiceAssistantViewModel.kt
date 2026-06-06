@@ -2,10 +2,8 @@ package com.genyassistant.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.toRoute
 import io.livekit.android.LiveKit
 import com.genyassistant.screen.VoiceAssistantRoute
 import io.livekit.android.token.TokenSource
@@ -22,14 +20,10 @@ class VoiceAssistantViewModel(
 
     val room = LiveKit.create(application)
 
-    val tokenSource: TokenSource
-
-    init {
-        tokenSource = if (route.sandboxId.isNotEmpty()) {
-            TokenSource.fromSandboxTokenServer(sandboxId = route.sandboxId).cached()
-        } else {
-            TokenSource.fromLiteral(route.url, route.token).cached()
-        }
+    val tokenSource: TokenSource = if (route.sandboxId.isNotEmpty()) {
+        TokenSource.fromSandboxTokenServer(sandboxId = route.sandboxId).cached()
+    } else {
+        TokenSource.fromLiteral(route.url, route.token).cached()
     }
 
     override fun onCleared() {

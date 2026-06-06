@@ -1,9 +1,11 @@
 package com.genyassistant.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,11 +23,11 @@ import com.genyassistant.ui.theme.NeonBlue
 import com.genyassistant.viewmodel.VoiceAssistantViewModel
 import io.livekit.android.annotations.Beta
 import io.livekit.android.compose.chat.rememberChat
-import io.livekit.android.compose.local.RoomScope
-import io.livekit.android.compose.state.rememberAgent
+import io.livekit.android.compose.local.RoomLocal
 import io.livekit.android.compose.state.rememberParticipants
 import io.livekit.android.compose.state.rememberRoomInfo
 import io.livekit.android.compose.state.rememberTracks
+import io.livekit.android.compose.state.rememberAgent
 import io.livekit.android.compose.state.rememberLocalMedia
 import io.livekit.android.compose.ui.VideoTrackView
 import io.livekit.android.room.track.Track
@@ -52,37 +54,48 @@ fun VoiceAssistantScreen(
     )
 ) {
     val room = viewModel.room
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    RoomScope(
-        url = route.url,
-        token = route.token,
-        connect = true,
-        audio = true,
-        passedRoom = room
-    ) {
+    // Conectar à sala se ainda não estiver conectado
+    LaunchedEffect(room, route) {
+        if (!room.isConnected) {
+            try {
+                val token = if (route.sandboxId.isNotEmpty()) {
+                    // Se houver sandboxId, o tokenSource já deve estar configurado no ViewModel
+                    viewModel.tokenSource.getToken()
+                } else {
+                    route.token
+                }
+                
+                val url = if (route.url.isNotEmpty()) route.url else "wss://geny-assistant-47cqg7ug.livekit.cloud"
+                
+                if (token.isNotEmpty()) {
+                    room.connect(url, token)
+                } else {
+                    Toast.makeText(context, "Token inválido", Toast.LENGTH_LONG).show()
+                    onEndCall()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro ao conectar: ${e.message}", Toast.LENGTH_LONG).show()
+                onEndCall()
+            }
+        }
+    }
+
+    RoomLocal(room = room) {
         val participants = rememberParticipants()
         val tracks = rememberTracks()
         val roomInfo = rememberRoomInfo()
         val chatState = rememberChat()
-        // The 'chatState' (Chat class) has a 'messages' property which is a State<List<ReceivedChatMessage>>.
-        // We can access it directly without collectAsState.
         val chat by chatState.messages
         val agent = rememberAgent()
 
         val canEnableMic by rememberCanEnableMic()
-        val localMedia = rememberLocalMedia(room = room)
-        val coroutineScope = rememberCoroutineScope()
+        val localMedia = rememberLocalMedia()
 
         var isChatOpen by remember { mutableStateOf(false) }
-
-        val context = LocalContext.current
-
-        // Start the session when we have at least microphone permissions.
-        LaunchedEffect(canEnableMic) {
-            if (!canEnableMic) {
-                return@LaunchedEffect
-            }
-        }
+        var chatMessage by remember { mutableStateOf("") }
 
         val constraintSet = ConstraintSet {
             val agentView = createRefFor("agentView")
@@ -112,8 +125,6 @@ fun VoiceAssistantScreen(
                 height = Dimension.value(180.dp)
             }
         }
-
-        var chatMessage by remember { mutableStateOf("") }
 
         ConstraintLayout(
             constraintSet = constraintSet,
