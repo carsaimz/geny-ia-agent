@@ -39,9 +39,9 @@ import kotlinx.coroutines.launch
 
 @Serializable
 data class VoiceAssistantRoute(
-    val sandboxId: String = "",
-    val url: String = "",
-    val token: String = "",
+    val sandboxId: String,
+    val url: String,
+    val token: String
 )
 
 @OptIn(Beta::class)

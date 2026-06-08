@@ -39,7 +39,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import kotlinx.serialization.Serializable
 
 @Serializable
-object ConnectRoute
+data object ConnectRoute
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable

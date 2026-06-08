@@ -33,10 +33,22 @@
 
 # Keep our specific routes
 -keep @kotlinx.serialization.Serializable class com.genyassistant.screen.** { *; }
+-keepclassmembers class com.genyassistant.screen.** {
+    *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
+# Keep LiveKit classes and serializers
+-keep class io.livekit.android.** { *; }
 -keepclassmembers class io.livekit.android.** {
     *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
 }
--keepclasseswithmembers class io.livekit.android.** {
+
+# General Kotlin Serialization
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable *;
+}
+-keepclassmembers class * {
     kotlinx.serialization.KSerializer serializer(...);
 }
