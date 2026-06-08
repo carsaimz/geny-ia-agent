@@ -20,10 +20,15 @@ class VoiceAssistantViewModel(
 
     val room = LiveKit.create(application)
 
-    val tokenSource: TokenSource = if (route.sandboxId.isNotEmpty()) {
-        TokenSource.fromSandboxTokenServer(sandboxId = route.sandboxId).cached()
-    } else {
-        TokenSource.fromLiteral(route.url, route.token).cached()
+    val tokenSource: TokenSource = try {
+        if (route.sandboxId.isNotEmpty()) {
+            TokenSource.fromSandboxTokenServer(sandboxId = route.sandboxId).cached()
+        } else {
+            TokenSource.fromLiteral(route.url, route.token).cached()
+        }
+    } catch (e: Exception) {
+        // Fallback para evitar crash imediato na inicialização
+        TokenSource.fromLiteral("", "").cached()
     }
 
     override fun onCleared() {

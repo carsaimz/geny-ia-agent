@@ -39,9 +39,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable<ConnectRoute> {
                             ConnectScreen(navigateToVoiceAssistant = { voiceAssistantRoute ->
-                                runOnUiThread {
-                                    navController.navigate(voiceAssistantRoute)
-                                }
+                                navController.navigate(voiceAssistantRoute)
                             })
                         }
 
